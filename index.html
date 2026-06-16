@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>知作业 · 固定悬浮渐变导航</title>
+
+    <!-- MathJax 配置 -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                packages: {'[+]': ['mhchem']}
+            },
+            loader: {
+                load: ['[tex]/mhchem']
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- smooth-scrollbar 惯性滚动库 -->
+    <script src="https://cdn.jsdelivr.net/npm/smooth-scrollbar@8.8.4/dist/smooth-scrollbar.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/smooth-scrollbar@8.8.4/dist/smooth-scrollbar.css">
+
+    <style>
+        /* 隐藏原生滚动条，平滑滚动库接管 */
+        body {
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .scroll-container {
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 雪山背景 + 固定半透明遮罩 */
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #e0e0e0;
+            line-height: 1.5;
+            background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2070&auto=format');
+            background-size: cover;
+            background-position: center top;
+            background-attachment: fixed;
+            position: relative;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            padding-top: 100px;  /* 为固定导航栏留出空间 */
+        }
+
+        /* 导航栏：始终固定，初始完全透明无背景 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: transparent;
+            backdrop-filter: none;
+            border: none;
+            transition: padding 0.2s ease, left 0.2s ease, right 0.2s ease, border-radius 0.2s ease, box-shadow 0.2s ease;
+            z-index: 100;
+        }
+        /* 滚动后样式（宽度缩短、圆角、阴影，背景和模糊由 JS 动态控制） */
+        .navbar.scrolled {
+            padding: 0.7rem 1.5rem;
+            left: 1rem;
+            right: 1rem;
+            width: calc(100% - 2rem);
+            border-radius: 60px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            background: rgba(0,0,0,0.3);
+            padding: 0.2rem 1rem;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+        }
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+        .nav-links a {
+            color: #e0e0e0;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover {
+            color: #ffffff;
+        }
+
+        /* Hero 区域 */
+        .hero {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            padding-bottom: 6rem;
+        }
+        .hero-subtitle {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #cccccc;
+            margin-bottom: 1rem;
+        }
+        .hero-title {
+            font-family: 'Times New Roman', Georgia, Times, serif;
+            font-size: 4rem;
+            font-weight: 400;
+            line-height: 1.2;
+            color: #ffffff;
+            max-width: 800px;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .hero-description {
+            font-size: 1.1rem;
+            color: #dddddd;
+            max-width: 550px;
+            margin-bottom: 2rem;
+            background: rgba(0,0,0,0.4);
+            padding: 0.6rem 1.2rem;
+            border-radius: 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 底部 Explore 渐变+动画 */
+        .explore-wrapper {
+            position: absolute;
+            bottom: 2rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .explore-wrapper:hover {
+            transform: translateY(-4px);
+        }
+        .explore-text {
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            background: linear-gradient(135deg, #ffffff, #aaaaaa, #ffffff);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: inline-block;
+            animation: gradientFlow 3s ease infinite;
+        }
+        @keyframes gradientFlow {
+            0% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+            100% { background-position: 0% center; }
+        }
+        .explore-arrow {
+            display: block;
+            font-size: 1.5rem;
+            margin-top: 0.3rem;
+            color: #ffffff;
+            opacity: 0.7;
+            animation: bounce 1.5s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(6px); }
+        }
+
+        /* 右下角固定按钮 */
+        .get-in-touch {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #ffffff;
+            text-decoration: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+        .get-in-touch:hover {
+            background: rgba(255,255,255,0.2);
+            color: #ffffff;
+        }
+
+        /* 作业区块 */
+        .work-section {
+            margin: 4rem 0 3rem;
+            scroll-margin-top: 100px;
+        }
+        .section-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #cccccc;
+            margin-bottom: 1.5rem;
+        }
+        .job-buttons-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1.5rem 0 2rem;
+        }
+        .job-btn {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 0.7rem 1.6rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #ffffff;
+        }
+        .job-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.4);
+            transform: translateY(-2px);
+        }
+
+        /* 预览卡片 - 黑色毛玻璃 */
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .preview-card {
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            transition: all 0.2s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        .preview-card:hover {
+            border-color: rgba(255,255,255,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+        }
+        .preview-card h3 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: #ffffff;
+        }
+        .preview-card ul {
+            list-style: none;
+        }
+        .preview-card li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+            color: #e0e0e0;
+        }
+        .preview-card li strong {
+            color: #ffffff;
+        }
+
+        /* 模态框 */
+        .markdown-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(8px);
+        }
+        .markdown-modal.active {
+            display: flex;
+        }
+        .markdown-card {
+            background: #1e1e1e;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            border-radius: 1.5rem;
+            overflow: auto;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+        }
+        .markdown-header {
+            position: sticky;
+            top: 0;
+            background: #1e1e1e;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            color: #ffffff;
+            z-index: 10;
+            border-radius: 1.5rem 1.5rem 0 0;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaaaaa;
+        }
+        .close-modal:hover {
+            color: #ffffff;
+        }
+        .markdown-content {
+            padding: 2rem;
+            line-height: 1.6;
+            color: #e0e0e0;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+        .markdown-content .MathJax,
+        .markdown-content .MathJax_Display {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        .markdown-content h1, .markdown-content h2 {
+            font-family: 'Times New Roman', serif;
+            color: #ffffff;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 4rem;
+            font-size: 0.75rem;
+            color: #aaaaaa;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 0 1.2rem; padding-top: 90px; }
+            .hero-title { font-size: 2.5rem; }
+            .preview-grid { grid-template-columns: 1fr; }
+            .navbar { padding: 0.8rem 1rem; }
+            .navbar.scrolled { padding: 0.5rem 1rem; width: calc(100% - 1rem); left: 0.5rem; right: 0.5rem; }
+            .nav-links { gap: 1rem; }
+            .hero { min-height: 70vh; }
+            .explore-text { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- smooth-scrollbar 容器 -->
+    <div class="scroll-container" id="scroll-container">
+        <div class="container">
+            <!-- 固定悬浮导航栏 -->
+            <div class="navbar" id="navbar">
+                <div class="logo">🏔️ 知作业</div>
+                <div class="nav-links">
+                    <a href="#">数学</a>
+                    <a href="#">英语</a>
+                    <a href="#">化学</a>
+                    <a href="#">解析</a>
+                </div>
+            </div>
+
+            <div class="hero">
+                <div class="hero-subtitle">积雪之下，思路更清晰</div>
+                <div class="hero-title">
+                    Imagine a space between <strong>answers</strong> & <strong>insights</strong><br>
+                    That’s where we thrive.
+                </div>
+                <div class="hero-description">
+                    每一份作业答案都是重新思考的起点。不只有答案，更有深度解析与延伸。
+                </div>
+                <div class="explore-wrapper" id="exploreBtn">
+                    <div class="explore-text">EXPLORE</div>
+                    <div class="explore-arrow">↓</div>
+                </div>
+            </div>
+
+            <div class="work-section" id="workSection">
+                <div class="section-label">📚 作业库 / 一键加载</div>
+                <div class="job-buttons-grid" id="jobButtonsGrid"></div>
+                <p style="font-size:0.7rem; color:#cccccc; margin-top:0.5rem;">✅ 点击 .txt 文件自动渲染 Markdown + 数学/化学公式</p>
+            </div>
+
+            <div class="preview-grid">
+                <div class="preview-card">
+                    <h3>🧮 数学精析·示例</h3>
+                    <ul>
+                        <li>📐 解方程 2(x-3)+5=3x-4 → <strong>x=3</strong></li>
+                        <li>📐 圆周长31.4cm → 面积 <strong>78.5cm²</strong></li>
+                        <li>📐 概率计算 $P(A)=\frac{1}{2}$ → <strong>0.5</strong></li>
+                    </ul>
+                </div>
+                <div class="preview-card">
+                    <h3>🌍 英语预览·语法点</h3>
+                    <ul>
+                        <li>📝 过去完成时 → <strong>had begun</strong></li>
+                        <li>📝 suggest doing → <strong>going</strong></li>
+                        <li>📝 虚拟语气 → <strong>If I were...</strong></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer">
+                Copyright © 2026 · 答案仅供参考，请独立思考 · 雪山之下，静心研学
+            </div>
+        </div>
+    </div>
+
+    <a href="#" class="get-in-touch" id="contactBtn">✉️ 反馈 / 投稿</a>
+
+    <script src="markdown.js"></script>
+    <script src="index.js"></script>
+
+    <script>
+        // 初始化平滑滚动条
+        const scrollContainer = document.getElementById('scroll-container');
+        const scrollbar = Scrollbar.init(scrollContainer, {
+            damping: 0.07,
+            thumbMinSize: 20,
+            renderByPixels: true,
+            continuousScrolling: true
+        });
+
+        const navbar = document.getElementById('navbar');
+        let lastScrollTop = 0;
+
+        // 滚动监听：动态控制背景透明度和模糊，并在超过阈值后添加 .scrolled 类（控制宽度、圆角等）
+        scrollbar.addListener((status) => {
+            const scrollTop = status.offset.y;
+            // 计算渐变的进度（最大 100px 完全显现）
+            const progress = Math.min(scrollTop / 100, 1);
+            // 动态设置背景和模糊（平滑过渡）
+            if (scrollTop > 5) {
+                navbar.style.background = `rgba(0, 0, 0, ${0.65 * progress})`;
+                navbar.style.backdropFilter = `blur(${12 * progress}px)`;
+            } else {
+                navbar.style.background = 'transparent';
+                navbar.style.backdropFilter = 'none';
+            }
+            // 滚动超过阈值（例如 30px）时添加 scrolled 类，实现缩短宽度、圆角等效果
+            if (scrollTop > 30) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+            lastScrollTop = scrollTop;
+        });
+
+        // Explore 按钮点击平滑滚动
+        const exploreBtn = document.getElementById('exploreBtn');
+        const workSection = document.getElementById('workSection');
+        if (exploreBtn && workSection) {
+            exploreBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetOffset = workSection.offsetTop - 100;
+                scrollbar.scrollTo(0, targetOffset, 800);
+            });
+        }
+
+        // 反馈按钮提示
+        document.getElementById('contactBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('欢迎提供更多作业资源或建议。\n可编辑 jobs.json 添加新作业文件。');
+        });
+    </script>
+</body>
+</html>
